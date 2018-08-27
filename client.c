@@ -11,22 +11,32 @@
 #define DBG(fmt, args...) printf(fmt, ##args);
 #endif
 
+#define HOSTIP "192.168.1.107"
+
+#define share_waring_port 9999
+
 #define share_con_port 9000
 #define share_cpu_port 10000
 #define share_mem_port 10001
 #define share_disk_port 10002
+#define share_sys_port 10003
+#define share_user_port 10004
+#define share_proc_port 10005
 
 #define CPU_FILE "/home/ddwt/文档/HZ/海贼项目/socket通信/Tcp项目/本机测试数据/cpu"
 #define DISK_FILE "/home/ddwt/文档/HZ/海贼项目/socket通信/Tcp项目/本机测试数据/disk"
 #define MEM_FILE "/home/ddwt/文档/HZ/海贼项目/socket通信/Tcp项目/本机测试数据/mem"
-
+#define SYS_FILE "/home/ddwt/文档/HZ/海贼项目/socket通信/Tcp项目/本机测试数据/sys"
+#define USER_FILE "/home/ddwt/文档/HZ/海贼项目/socket通信/Tcp项目/本机测试数据/user"
+#define PROC_FILE "/home/ddwt/文档/HZ/海贼项目/socket通信/Tcp项目/本机测试数据/proc"
 int socket_create();
-int socket_bind(int, int);
+void socket_bind(int, int);
 void socket_listen(int);
 int socket_accept(int, struct sockaddr_in *, socklen_t *);
 void set_socket(int sockfd);
 void get_file(char *, char *);
-
+void send_warning(char *);
+void send_file(char *bash, char *save_file, int port, char *file_type);
 
 int main() {
     fflush(stdout);
@@ -42,9 +52,8 @@ int main() {
     int rec_sockfd; 
     struct sockaddr_in server_addr;
     socklen_t len = sizeof(struct sockaddr_in);
-    
     int PID, count = 0;
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 5; i++) {
         count++;
         PID = fork();
         if (PID == 0) break;
@@ -52,145 +61,24 @@ int main() {
     
     if (PID != 0) {
         int a = 0;
-        while (scanf("%d", &a) != EOF) {
-            printf("父进程不能死！");
-        }
-    };
-    if (count == 1) {
         while (1) {
-            get_file("bash get_cpu.sh", CPU_FILE);
-            int cpu_sockfd = socket_create();
-            set_socket(cpu_sockfd);
-            socket_bind(cpu_sockfd, share_cpu_port);
-            socket_listen(cpu_sockfd);
-            printf("开启监听\n");
-            int rec_cpu_sockfd = socket_accept(cpu_sockfd, &server_addr, &len);   //所以这儿又得开新套解字去接收监听结果 不用create码
-
-            //rec_sockfd = socket_accept(sockfd, &server_addr, &len);
-            char rec_buff[1000] = {0};
-            fflush(stdout);
-            sleep(0.3);
-            recv(rec_cpu_sockfd, rec_buff, 1000, 0);
-            if (strcmp(rec_buff, "cpu") == 0) {
-                printf("receive cpu\n");
-                int ans = send(rec_cpu_sockfd, "ok", 2, 0);
-                //if (ans > 0) printf("send ok done\n"); 
-            } else {
-                send(rec_cpu_sockfd, "notcpu", 6, 0);
-            }
-            memset(rec_buff, 0, 1000);
-
-            //FILE *cpu_f = fopen("/home/ddwt/cpu", "r");
-            if (rec_cpu_sockfd > 0) printf("链接专用端口成功\n");
-            else printf("链接专用端口失败\n");
-            FILE *cpu_f = fopen(CPU_FILE, "r");
-            flock(cpu_f -> _fileno, LOCK_EX); //互斥锁
-            sleep(0.3); //又睡？
-            while (fgets(rec_buff, 1000, cpu_f)) {
-                send(rec_cpu_sockfd, rec_buff, strlen(rec_buff), 0);
-                memset(rec_buff, 0, 1000);
-            }
-            fflush(stdout);
-            //DBG("send ok\n");
-            flock(cpu_f -> _fileno, LOCK_UN); //解锁
-            fclose(cpu_f);
-            //清空文件
-            //FILE *del_cpu_f = fopen("/home/ddwt/cpu", "w");
-            //FILE *del_cpu_f = fopen(CPU_FILE, "w");
-            //fclose(del_cpu_f);
-            close(rec_cpu_sockfd);
-            close(cpu_sockfd);
-            DBG("close ok\n");
+            rec_sockfd = socket_accept(sockfd, &server_addr, &len);
         }
-    } else if (count == 2) {
-        while (1) {
-            get_file("bash get_memory.sh", MEM_FILE);
-            int mem_sockfd = socket_create();
-            set_socket(mem_sockfd);
-            socket_bind(mem_sockfd, share_mem_port);
-            socket_listen(mem_sockfd);
-            int rec_mem_sockfd = socket_accept(mem_sockfd, &server_addr, &len);   //所以这儿又得开新套解字去接收监听结果 不用create码       
-            char rec_buff[1000] = {0};
-            fflush(stdout);
-            sleep(0.3);
-            recv(rec_mem_sockfd, rec_buff, 1000, 0);
-            if (strcmp(rec_buff, "mem") == 0) {
-                send(rec_mem_sockfd, "ok", 2, 0);
-            } else {
-                send(rec_mem_sockfd, "notmem", 6, 0);
-            }
-            memset(rec_buff, 0, 1000);
-            if (rec_mem_sockfd > 0) printf("链接专用端口成功\n");
-            else printf("链接专用端口失败\n");
-            //FILE *mem_f = fopen("/home/ddwt/mem", "r");
-            FILE *mem_f = fopen(MEM_FILE, "r");
-            flock(mem_f -> _fileno, LOCK_EX); //互斥锁
-            sleep(0.3); //又睡？
-            while (fgets(rec_buff, 1000, mem_f)) {
-                send(rec_mem_sockfd, rec_buff, strlen(rec_buff), 0);
-                memset(rec_buff, 0, 1000);
-            }
-            //DBG("send ok\n");
-            fflush(stdout);
-            flock(mem_f -> _fileno, LOCK_UN); //解锁
-            fclose(mem_f);
-            //清空文件
-            //FILE *del_mem_f = fopen("/home/ddwt/mem", "w");
-            //FILE *del_mem_f = fopen(MEM_FILE, "w");
-            //fclose(del_mem_f);
-            close(rec_mem_sockfd);
-            close(mem_sockfd);
-            DBG("close ok\n");
-        }
-    } else if (count == 3) {
-        while (1) {
-            get_file("bash get_disk.sh", DISK_FILE);
-            int disk_sockfd = socket_create();
-            set_socket(disk_sockfd);
-            socket_bind(disk_sockfd, share_disk_port);
-            socket_listen(disk_sockfd);
-            int rec_disk_sockfd = socket_accept(disk_sockfd, &server_addr, &len);   //所以这儿又得开新套解字去接收监听结果 不用create码
-            char rec_buff[1000] = {0};
-            fflush(stdout);
-            sleep(0.3);
-            recv(rec_disk_sockfd, rec_buff, 1000, 0);
-            if (strcmp(rec_buff, "disk") == 0) {
-                send(rec_disk_sockfd, "ok", 2, 0);
-            } else {
-                send(rec_disk_sockfd, "notdisk", 7, 0);
-            }
-            memset(rec_buff, 0, 1000);
-            if (rec_disk_sockfd > 0) printf("链接专用端口成功\n");
-            else printf("链接专用端口失败\n");
-            //FILE *disk_f = fopen("/home/ddwt/disk", "r");
-            FILE *disk_f = fopen(DISK_FILE, "r");
-            flock(disk_f -> _fileno, LOCK_EX); //互斥锁
-            sleep(0.3); //又睡？
-            while (fgets(rec_buff, 1000, disk_f)) {
-                send(rec_disk_sockfd, rec_buff, strlen(rec_buff), 0);
-                memset(rec_buff, 0, 1000);
-            }
-            fflush(stdout);
-            //DBG("send ok\n");
-            flock(disk_f -> _fileno, LOCK_UN); //解锁
-            fclose(disk_f);
-            //清空文件
-            //FILE *del_disk_f = fopen("/home/ddwt/mem", "w");
-            //FILE *del_disk_f = fopen(DISK_FILE, "w");
-            //fclose(del_disk_f);
-            close(rec_disk_sockfd);
-            close(disk_sockfd);
-            DBG("close ok\n");
-        }
-    } else if (count == 4) {
-        return 0;
-    } else if (count == 5) {
-        return 0;
+	    return 0;
     }
-    
-
- 
-    return 0;
+    if (count == 1) {
+        send_file("bash get_cpu.sh", CPU_FILE, share_cpu_port, "cpu");
+    } else if (count == 2) {
+        send_file("bash get_memory.sh", MEM_FILE, share_mem_port, "mem");
+    } else if (count == 3) {
+        send_file("bash get_disk.sh", DISK_FILE, share_disk_port, "disk");
+    } else if (count == 4) { //SysInfo
+        send_file("bash get_sys.sh", SYS_FILE, share_sys_port, "sys");
+    } else if (count == 5) { //user
+        send_file("bash get_user.sh", USER_FILE, share_user_port, "user");
+    } else { //Proc
+        send_file("bash get_proc.sh", PROC_FILE, share_proc_port, "proc");
+    }
 }
 
 int socket_create() {
@@ -203,7 +91,7 @@ int socket_create() {
 }
 
 
-int socket_bind(int sockfd, int port) {
+void socket_bind(int sockfd, int port) {
     struct sockaddr_in sock_addr;
     sock_addr.sin_family = AF_INET;
     sock_addr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -249,16 +137,90 @@ void get_file(char *bash_file, char *save_addr) {
     char buffer[1000] = {0};
     char temp[50] = {0};
     FILE *f = popen(bash_file, "r");
-    while (fgets(temp, sizeof(temp), f)) {
+    while (fscanf(f, "%s", temp) != EOF) {
         strcat(buffer, temp);
-        //printf("%s\n", temp);
+        strcat(buffer, " ");
+        if (strcmp(temp, "Waring") == 0) send_warning(buffer);
         memset(temp, 0, 50);
     }
+    strcat(buffer, "\n");
     pclose(f);
-    //printf("%s\n", buffer);
     FILE *save_file = fopen(save_addr, "a+");
     fprintf(save_file, "%s", buffer);
     memset(buffer, 0, sizeof(buffer));
     fclose(save_file);
-    //printf("获取数据完成\n");
+}
+
+
+void send_file(char *bash, char *save_file, int port, char *file_type) {
+    int i = 0;
+    while (1) {
+        i += 1;
+        if (i % 10 != 0) {
+            sleep(0.1);
+            get_file(bash, save_file);
+            continue;
+        } else {
+            get_file(bash, save_file);
+            int sockfd = socket_create();
+            set_socket(sockfd);
+            struct sockaddr_in sock_addr;
+            socklen_t len = sizeof(struct sockaddr_in);
+            sock_addr.sin_family = AF_INET;
+            sock_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+            sock_addr.sin_port = htons(port);
+            if (bind(sockfd, (struct sockaddr *)&sock_addr, sizeof(sock_addr)) < 0) {
+                DBG("bind error!\n");
+                return ;
+            }
+            socket_listen(sockfd);
+            printf("开始监听: %s\n", file_type);
+            int rec_sockfd = socket_accept(sockfd, &sock_addr, &len);   //所以这儿又得开新套解字去接收监听结果 不用create码
+            char rec_buff[1000] = {0};
+            fflush(stdout);
+            sleep(0.3);
+            recv(rec_sockfd, rec_buff, 1000, 0);
+            if (strcmp(rec_buff, file_type) == 0) {
+                send(rec_sockfd, "ok", 2, 0);
+            } else {
+                send(rec_sockfd, "notok", 7, 0);
+            }
+            sleep(0.3);
+            memset(rec_buff, 0, 1000);
+            FILE *disk_f = fopen(save_file, "r");
+            flock(disk_f -> _fileno, LOCK_EX); //互斥锁
+            sleep(5); //又睡？
+            while (fgets(rec_buff, 1000, disk_f)) {
+                send(rec_sockfd, rec_buff, strlen(rec_buff), 0);
+                memset(rec_buff, 0, 1000);
+            }
+            fflush(stdout);
+            flock(disk_f -> _fileno, LOCK_UN); //解锁
+            fclose(disk_f);
+            //清空文件
+            FILE *del_disk_f = fopen(save_file, "w");
+            fclose(del_disk_f);
+            close(rec_sockfd);
+            close(sockfd);
+            DBG("close ok\n");
+            i = 0;
+            sleep(0.1);
+        }
+    } 
+}
+
+
+void send_warning(char *buffer) {
+    int sockfd = socket_create();
+    struct sockaddr_in client_addr;
+    client_addr.sin_family = AF_INET;
+    client_addr.sin_port = htons(share_waring_port);
+    client_addr.sin_addr.s_addr = inet_addr(HOSTIP);
+    int waring_sockfd = connect(sockfd, (struct sockaddr *)&client_addr, sizeof(client_addr));
+    if (waring_sockfd < 0) {
+        DBG("connect error\n");
+        return ;
+    }
+    send(waring_sockfd, buffer, strlen(buffer), 0);
+    return ;
 }
